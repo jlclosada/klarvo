@@ -1,0 +1,44 @@
+# ============================================================================
+# Klarvo — Orquestación local con Docker.
+#
+# Levanta la app Next.js en un contenedor. La base de datos se gestiona con la
+# CLI de Supabase (npm run setup:local), que ya arranca Postgres/Auth/Storage
+# en Docker. Este compose se centra en construir y ejecutar la aplicación de
+# forma reproducible en cualquier equipo.
+#
+#   docker compose up --build        # construir y arrancar
+#   docker compose up -d             # en segundo plano
+#   docker compose down              # detener
+# ============================================================================
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+        NEXT_PUBLIC_APP_NAME: ${NEXT_PUBLIC_APP_NAME:-Klarvo}
+        NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+        NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
+        NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: ${NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY:-}
+    image: klarvo:local
+    container_name: klarvo-app
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      # Variables de servidor (opcionales: la app degrada con elegancia sin ellas).
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY:-}
+      STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET:-}
+      RESEND_API_KEY: ${RESEND_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-Klarvo <hola@klarvo.es>}
+      CRON_SECRET: ${CRON_SECRET:-}
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s

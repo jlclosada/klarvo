@@ -1,0 +1,12 @@
+{
+  "crons": [
+    {
+      "path": "/api/cron/expirar-reservas",
+      "schedule": "* * * * *"
+    },
+    {
+      "path": "/api/cron/enviar-recordatorios",
+      "schedule": "*/5 * * * *"
+    }
+  ]
+}

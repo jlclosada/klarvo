@@ -1,0 +1,33 @@
+# Dependencias y builds
+node_modules
+.next
+out
+build
+coverage
+
+# Entorno y secretos
+.env
+.env*.local
+.env.example
+
+# Git y CI
+.git
+.github
+.gitignore
+
+# Supabase local
+supabase/.branches
+supabase/.temp
+
+# Documentación y meta
+*.md
+docs
+.vscode
+.idea
+
+# Sistema
+.DS_Store
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.tsbuildinfo
