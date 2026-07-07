@@ -3,7 +3,9 @@ const nextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   // Genera un servidor autocontenido (.next/standalone) para imágenes Docker mínimas.
-  output: 'standalone',
+  // En Netlify (NETLIFY=true en su entorno de build) el runtime propio de Next
+  // se encarga del empaquetado, así que ahí no forzamos 'standalone'.
+  output: process.env.NETLIFY ? undefined : 'standalone',
   outputFileTracingRoot: import.meta.dirname,
   images: {
     remotePatterns: [
