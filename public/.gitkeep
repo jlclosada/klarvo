@@ -1,0 +1,3 @@
+# Esta carpeta contiene los archivos estáticos públicos servidos en la raíz (/).
+# El .gitkeep garantiza que la carpeta exista en el repositorio, ya que el
+# Dockerfile la copia a la imagen de producción (COPY /app/public ./public).
