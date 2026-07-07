@@ -2,7 +2,8 @@
 
 import { LogoutButton } from "@/components/app/logout-button";
 import { Logo } from "@/components/ui/logo";
-import { mockNegocio } from "@/lib/mock";
+import { nombreVertical } from "@/lib/config";
+import type { NegocioPanel } from "@/lib/db/panel";
 import { cn } from "@/lib/utils";
 import {
     BarChart3,
@@ -25,8 +26,12 @@ const items = [
   { href: "/app/metricas", label: "Métricas", icon: BarChart3 },
 ];
 
-export function Sidebar() {
+export function Sidebar({ negocio }: { negocio: NegocioPanel | null }) {
   const pathname = usePathname();
+
+  const nombre = negocio?.nombre ?? "Tu negocio";
+  const vertical = negocio ? nombreVertical(negocio.vertical) : "Sin configurar";
+  const plan = negocio?.plan ?? "solo";
 
   return (
     <aside className="sticky top-0 hidden h-screen w-64 shrink-0 flex-col border-r border-ink-200/60 bg-ink-50/40 p-4 lg:flex">
@@ -35,10 +40,10 @@ export function Sidebar() {
       </div>
 
       <div className="mt-4 rounded-2xl border border-ink-200/60 bg-white p-3 shadow-soft">
-        <p className="text-sm font-semibold text-ink-900">{mockNegocio.nombre}</p>
-        <p className="text-xs text-ink-400">{mockNegocio.vertical}</p>
-        <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-brand-500/10 px-2 py-0.5 text-[11px] font-medium text-brand-700">
-          Plan {mockNegocio.plan}
+        <p className="text-sm font-semibold text-ink-900">{nombre}</p>
+        <p className="text-xs text-ink-400">{vertical}</p>
+        <span className="mt-2 inline-flex items-center gap-1 rounded-full bg-brand-500/10 px-2 py-0.5 text-[11px] font-medium capitalize text-brand-700">
+          Plan {plan}
         </span>
       </div>
 

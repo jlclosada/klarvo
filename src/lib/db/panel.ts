@@ -1,6 +1,6 @@
 import 'server-only';
 
-import type { EstadoCita } from '@/lib/config';
+import { esVerticalRestauracion, type EstadoCita } from '@/lib/config';
 import { hasSupabase } from '@/lib/env';
 import {
   mockCitasHoy,
@@ -10,6 +10,11 @@ import {
   mockNegocio,
   mockServicios,
 } from '@/lib/mock';
+import {
+  CONFIG_RESTAURANTE_DEFECTO,
+  parseConfigRestaurante,
+  type ConfigRestaurante,
+} from '@/lib/restaurante/config';
 import { createClient } from '@/lib/supabase/server';
 import type {
   ClienteRow,
@@ -17,7 +22,6 @@ import type {
   NegocioRow,
   ServicioRow,
 } from '@/lib/supabase/types';
-
 /**
  * Capa de datos del panel autenticado. Cada consulta pasa por el cliente de
  * servidor con la sesión del usuario, de modo que Row Level Security garantiza
@@ -82,6 +86,7 @@ export interface NegocioAjustes {
   plan: string;
   horario: HorarioSemana;
   fiscales: DatosFiscales;
+  configRestaurante: ConfigRestaurante;
   serieFactura: string;
   proximoNumeroFactura: number;
   demo: boolean;
@@ -117,6 +122,7 @@ export async function getNegocioAjustes(): Promise<NegocioAjustes | null> {
         dom: [],
       },
       fiscales: FISCALES_VACIOS,
+      configRestaurante: CONFIG_RESTAURANTE_DEFECTO,
       serieFactura: 'A',
       proximoNumeroFactura: 130,
       demo: true,
@@ -132,7 +138,7 @@ export async function getNegocioAjustes(): Promise<NegocioAjustes | null> {
   const { data } = await supabase
     .from('negocios')
     .select(
-      'id, nombre, slug, vertical, plan, horario_json, datos_fiscales_json',
+      'id, nombre, slug, vertical, plan, horario_json, datos_fiscales_json, config_restaurante_json',
     )
     .limit(1)
     .maybeSingle<
@@ -145,6 +151,7 @@ export async function getNegocioAjustes(): Promise<NegocioAjustes | null> {
         | 'plan'
         | 'horario_json'
         | 'datos_fiscales_json'
+        | 'config_restaurante_json'
       >
     >();
   if (!data) return null;
@@ -174,6 +181,7 @@ export async function getNegocioAjustes(): Promise<NegocioAjustes | null> {
       poblacion: fiscalesRaw.poblacion ?? '',
       cp: fiscalesRaw.cp ?? '',
     },
+    configRestaurante: parseConfigRestaurante(data.config_restaurante_json),
     serieFactura: 'A',
     proximoNumeroFactura: (ultima?.numero ?? 0) + 1,
     demo: false,
@@ -674,10 +682,15 @@ export async function getAgendaDia(fecha?: string): Promise<AgendaDia> {
 export interface ResumenOnboarding {
   negocioNombre: string;
   vertical: string;
+  esRestaurante: boolean;
   tieneServicios: boolean;
   tieneHorario: boolean;
   tieneCliente: boolean;
-  /** El onboarding se considera completo con al menos un servicio. */
+  tieneConfigRestaurante: boolean;
+  /**
+   * El onboarding se considera completo con al menos un servicio (verticales de
+   * cita) o con la configuración de turnos guardada (restauración).
+   */
   completo: boolean;
 }
 
@@ -696,9 +709,14 @@ export async function getResumenOnboarding(): Promise<ResumenOnboarding | null> 
 
   const { data: negocio } = await supabase
     .from('negocios')
-    .select('nombre, vertical, horario_json')
+    .select('nombre, vertical, horario_json, config_restaurante_json')
     .limit(1)
-    .maybeSingle<Pick<NegocioRow, 'nombre' | 'vertical' | 'horario_json'>>();
+    .maybeSingle<
+      Pick<
+        NegocioRow,
+        'nombre' | 'vertical' | 'horario_json' | 'config_restaurante_json'
+      >
+    >();
   if (!negocio) return null;
 
   const [servicios, clientes] = await Promise.all([
@@ -712,12 +730,21 @@ export async function getResumenOnboarding(): Promise<ResumenOnboarding | null> 
   const tieneServicios = (servicios.count ?? 0) > 0;
   const tieneCliente = (clientes.count ?? 0) > 0;
 
+  const esRestaurante = esVerticalRestauracion(negocio.vertical);
+  const configRaw = (negocio.config_restaurante_json ?? {}) as {
+    turnos?: unknown[];
+  };
+  const tieneConfigRestaurante =
+    Array.isArray(configRaw.turnos) && configRaw.turnos.length > 0;
+
   return {
     negocioNombre: negocio.nombre,
     vertical: negocio.vertical,
+    esRestaurante,
     tieneServicios,
     tieneHorario,
     tieneCliente,
-    completo: tieneServicios,
+    tieneConfigRestaurante,
+    completo: esRestaurante ? tieneConfigRestaurante : tieneServicios,
   };
 }

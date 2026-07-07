@@ -3,6 +3,17 @@ import 'server-only';
 import { hasSupabaseAdmin } from '@/lib/env';
 import { mockNegocio, mockServicios } from '@/lib/mock';
 import { calcularHuecos, type Intervalo } from '@/lib/reservas/disponibilidad';
+import {
+  CONFIG_RESTAURANTE_DEFECTO,
+  aforoDia,
+  parseConfigRestaurante,
+  type ConfigRestaurante,
+} from '@/lib/restaurante/config';
+import {
+  intervaloTurno,
+  plazasPorTurno,
+  type PlazasTurno,
+} from '@/lib/restaurante/disponibilidad';
 import { createAdminClient } from '@/lib/supabase/admin';
 import type { NegocioRow, ServicioRow } from '@/lib/supabase/types';
 
@@ -165,4 +176,77 @@ export async function getHuecosDisponibles(
         hour12: false,
       }),
     );
+}
+
+// ─────────────────────────── Reservas de restauración ───────────────────────
+
+/** Configuración de restauración de un negocio para la reserva pública. */
+export async function getConfigRestaurantePublica(
+  negocioId: string,
+): Promise<ConfigRestaurante> {
+  if (!hasSupabaseAdmin() || negocioId === 'demo') {
+    return CONFIG_RESTAURANTE_DEFECTO;
+  }
+
+  const supabase = createAdminClient();
+  const { data } = await supabase
+    .from('negocios')
+    .select('config_restaurante_json')
+    .eq('id', negocioId)
+    .maybeSingle<Pick<NegocioRow, 'config_restaurante_json'>>();
+
+  return parseConfigRestaurante(data?.config_restaurante_json);
+}
+
+/**
+ * Disponibilidad por turno de un restaurante en una fecha: aforo del día menos
+ * los comensales ya reservados en cada turno. En modo demo devuelve el aforo
+ * completo (sin reservas previas).
+ */
+export async function getDisponibilidadRestaurante(
+  negocioId: string,
+  config: ConfigRestaurante,
+  fecha: Date,
+): Promise<PlazasTurno[]> {
+  const aforo = aforoDia(config, fecha);
+
+  const reservadosPorTurno: Record<string, number> = {};
+
+  if (hasSupabaseAdmin() && negocioId !== 'demo') {
+    const supabase = createAdminClient();
+    const inicioDia = new Date(fecha);
+    inicioDia.setHours(0, 0, 0, 0);
+    const finDia = new Date(inicioDia);
+    finDia.setDate(finDia.getDate() + 1);
+
+    const { data } = await supabase
+      .from('citas')
+      .select('inicio, comensales, estado')
+      .eq('negocio_id', negocioId)
+      .gte('inicio', inicioDia.toISOString())
+      .lt('inicio', finDia.toISOString())
+      .in('estado', [
+        'PENDIENTE_PAGO',
+        'CONFIRMADA',
+        'RECORDADA',
+        'COMPLETADA',
+      ]);
+
+    // Asigna cada cita al turno cuyo intervalo contiene su hora de inicio.
+    for (const cita of data ?? []) {
+      const inicio = new Date(cita.inicio);
+      const comensales = cita.comensales ?? 0;
+      if (comensales <= 0) continue;
+      const turno = config.turnos.find((t) => {
+        const { inicio: ti, fin: tf } = intervaloTurno(fecha, t);
+        return inicio >= ti && inicio < tf;
+      });
+      if (turno) {
+        reservadosPorTurno[turno.id] =
+          (reservadosPorTurno[turno.id] ?? 0) + comensales;
+      }
+    }
+  }
+
+  return plazasPorTurno(config, aforo, reservadosPorTurno);
 }

@@ -10,7 +10,8 @@ export type VerticalNegocio =
   | 'masaje'
   | 'fisio'
   | 'fitness'
-  | 'bienestar';
+  | 'bienestar'
+  | 'restaurante';
 
 export type EstadoCitaDB =
   | 'BORRADOR'
@@ -43,6 +44,7 @@ export interface NegocioRow {
   stripe_customer_id: string | null;
   stripe_account_id: string | null;
   datos_fiscales_json: Record<string, unknown>;
+  config_restaurante_json: Record<string, unknown>;
   region_datos: string;
   creado_en: string;
 }
@@ -99,6 +101,8 @@ export interface CitaRow {
   token_gestion: string;
   expira_en: string | null;
   creada_en: string;
+  /** Número de comensales (solo reservas de restauración; null en el resto). */
+  comensales: number | null;
 }
 
 export interface FacturaRow {

@@ -1,9 +1,13 @@
 import { BookingFlow } from "@/components/reservar/booking-flow";
+import { BookingFlowRestaurante } from "@/components/reservar/booking-flow-restaurante";
 import { Logo } from "@/components/ui/logo";
+import { esVerticalRestauracion, nombreVertical } from "@/lib/config";
 import {
+    getConfigRestaurantePublica,
+    getDisponibilidadRestaurante,
     getHuecosDisponibles,
     getNegocioPorSlug,
-    getServiciosPublicos,
+    getServiciosPublicos
 } from "@/lib/db/reservas-publicas";
 import { Clock, MapPin, Star } from "lucide-react";
 import type { Metadata } from "next";
@@ -33,12 +37,25 @@ export default async function ReservarPage({
   const negocio = await getNegocioPorSlug(slug);
   if (!negocio) notFound();
 
-  const servicios = await getServiciosPublicos(negocio.id);
+  const esRestaurante = esVerticalRestauracion(negocio.vertical);
+
+  const servicios = esRestaurante ? [] : await getServiciosPublicos(negocio.id);
 
   const hoy = new Date();
-  const huecos = servicios.length
-    ? await getHuecosDisponibles(negocio.id, servicios[0], hoy)
-    : [];
+  const huecos =
+    !esRestaurante && servicios.length
+      ? await getHuecosDisponibles(negocio.id, servicios[0], hoy)
+      : [];
+
+  // Datos específicos de restauración (turnos y aforo del día de hoy).
+  const configRestaurante = esRestaurante
+    ? await getConfigRestaurantePublica(negocio.id)
+    : null;
+  const turnosHoy =
+    esRestaurante && configRestaurante
+      ? await getDisponibilidadRestaurante(negocio.id, configRestaurante, hoy)
+      : [];
+  const fechaHoyISO = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}-${String(hoy.getDate()).padStart(2, "0")}`;
 
   const iniciales = negocio.nombre
     .split(" ")
@@ -59,7 +76,9 @@ export default async function ReservarPage({
           <h1 className="mt-4 text-2xl font-semibold tracking-tight text-ink-900">
             {negocio.nombre}
           </h1>
-          <p className="mt-1 text-sm text-ink-500">{negocio.vertical}</p>
+          <p className="mt-1 text-sm text-ink-500">
+            {nombreVertical(negocio.vertical)}
+          </p>
           <div className="mt-3 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-xs text-ink-400">
             <span className="inline-flex items-center gap-1.5">
               <Star className="h-3.5 w-3.5 fill-amber-400 text-amber-400" />
@@ -79,12 +98,28 @@ export default async function ReservarPage({
 
       {/* Flujo de reserva */}
       <main className="container-tight max-w-3xl py-12">
-        <BookingFlow
-          negocioSlug={negocio.slug}
-          negocioNombre={negocio.nombre}
-          servicios={servicios}
-          huecosIniciales={huecos}
-        />
+        {esRestaurante && configRestaurante ? (
+          <BookingFlowRestaurante
+            negocioSlug={negocio.slug}
+            negocioNombre={negocio.nombre}
+            tamanoMaxGrupo={configRestaurante.tamanoMaxGrupo}
+            fechaInicialISO={fechaHoyISO}
+            turnosIniciales={turnosHoy.map((t) => ({
+              turnoId: t.turno.id,
+              nombre: t.turno.nombre,
+              inicio: t.turno.inicio,
+              fin: t.turno.fin,
+              disponibles: t.disponibles,
+            }))}
+          />
+        ) : (
+          <BookingFlow
+            negocioSlug={negocio.slug}
+            negocioNombre={negocio.nombre}
+            servicios={servicios}
+            huecosIniciales={huecos}
+          />
+        )}
       </main>
 
       <footer className="border-t border-ink-200/60 py-8">

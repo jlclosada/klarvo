@@ -1,7 +1,9 @@
 "use client";
 
+import { AjustesRestaurante } from "@/components/app/ajustes-restaurante";
 import type { ResumenOnboarding } from "@/lib/db/panel";
 import { guardarHorarioNegocio } from "@/lib/negocio/actions";
+import { CONFIG_RESTAURANTE_DEFECTO } from "@/lib/restaurante/config";
 import { crearServicio } from "@/lib/servicios/actions";
 import {
     ArrowRight,
@@ -12,6 +14,7 @@ import {
     Plus,
     Scissors,
     Store,
+    UtensilsCrossed
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
@@ -70,10 +73,11 @@ export function OnboardingWizard({ resumen }: { resumen: ResumenOnboarding }) {
   const [paso, setPaso] = useState(0);
 
   const presets = PRESETS[resumen.vertical] ?? PRESETS.peluqueria;
+  const esRestaurante = resumen.esRestaurante;
 
   return (
     <div className="mx-auto flex min-h-screen w-full max-w-2xl flex-col justify-center px-6 py-12">
-      <Pasos actual={paso} />
+      <Pasos actual={paso} esRestaurante={esRestaurante} />
 
       {paso === 0 && (
         <Bienvenida
@@ -82,13 +86,16 @@ export function OnboardingWizard({ resumen }: { resumen: ResumenOnboarding }) {
         />
       )}
 
-      {paso === 1 && (
-        <PasoServicios
-          presets={presets}
-          yaTeniaServicios={resumen.tieneServicios}
-          onContinuar={() => setPaso(2)}
-        />
-      )}
+      {paso === 1 &&
+        (esRestaurante ? (
+          <PasoRestaurante onContinuar={() => setPaso(2)} />
+        ) : (
+          <PasoServicios
+            presets={presets}
+            yaTeniaServicios={resumen.tieneServicios}
+            onContinuar={() => setPaso(2)}
+          />
+        ))}
 
       {paso === 2 && (
         <PasoHorario
@@ -102,8 +109,18 @@ export function OnboardingWizard({ resumen }: { resumen: ResumenOnboarding }) {
   );
 }
 
-function Pasos({ actual }: { actual: number }) {
-  const etiquetas = ["Bienvenida", "Servicios", "Horario"];
+function Pasos({
+  actual,
+  esRestaurante,
+}: {
+  actual: number;
+  esRestaurante: boolean;
+}) {
+  const etiquetas = [
+    "Bienvenida",
+    esRestaurante ? "Mesas y turnos" : "Servicios",
+    "Horario",
+  ];
   return (
     <div className="mb-8 flex items-center justify-center gap-2">
       {etiquetas.map((e, i) => (
@@ -326,6 +343,46 @@ function PasoServicios({
         Continuar
         <ArrowRight className="h-4 w-4" />
       </button>
+    </div>
+  );
+}
+
+function PasoRestaurante({ onContinuar }: { onContinuar: () => void }) {
+  const [guardado, setGuardado] = useState(false);
+
+  return (
+    <div className="rounded-3xl border border-ink-200/70 bg-white p-8 shadow-soft">
+      <h2 className="flex items-center gap-2 text-lg font-semibold text-ink-900">
+        <UtensilsCrossed className="h-5 w-5 text-brand-600" />
+        Configura tus mesas y turnos
+      </h2>
+      <p className="mt-1 text-sm text-ink-500">
+        Define cuántas mesas ofreces cada día y tus turnos de comida. Tus
+        clientes reservarán indicando el número de comensales. Podrás cambiarlo
+        cuando quieras en Ajustes.
+      </p>
+
+      <div className="mt-5">
+        <AjustesRestaurante
+          config={CONFIG_RESTAURANTE_DEFECTO}
+          onSaved={() => setGuardado(true)}
+          refrescarAlGuardar={false}
+        />
+      </div>
+
+      <button
+        onClick={onContinuar}
+        disabled={!guardado}
+        className="btn-primary mt-6 w-full"
+      >
+        Continuar
+        <ArrowRight className="h-4 w-4" />
+      </button>
+      {!guardado && (
+        <p className="mt-2 text-center text-xs text-ink-400">
+          Guarda la configuración para continuar.
+        </p>
+      )}
     </div>
   );
 }

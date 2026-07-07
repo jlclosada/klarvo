@@ -1,7 +1,8 @@
 import { AjustesNegocio } from "@/components/app/ajustes-negocio";
+import { AjustesRestaurante } from "@/components/app/ajustes-restaurante";
 import { Topbar } from "@/components/app/topbar";
 import { Reveal } from "@/components/motion/reveal";
-import { site } from "@/lib/config";
+import { esVerticalRestauracion, site } from "@/lib/config";
 import { getNegocioAjustes } from "@/lib/db/panel";
 import {
     Check,
@@ -65,6 +66,17 @@ export default async function AjustesPage() {
             />
           </div>
         </Reveal>
+
+        {esVerticalRestauracion(ajustes.vertical) && (
+          <Reveal>
+            <div id="restaurante" className="scroll-mt-24">
+              <AjustesRestaurante
+                config={ajustes.configRestaurante}
+                deshabilitado={ajustes.demo}
+              />
+            </div>
+          </Reveal>
+        )}
 
         {/* Facturación fiscal / VeriFactu */}
         <Reveal id="facturacion" className="scroll-mt-24 rounded-3xl border border-ink-200/70 bg-white p-6 shadow-soft">

@@ -40,7 +40,27 @@ export const verticales: Vertical[] = [
   { id: 'fisio', nombre: 'Fisioterapia', emoji: '🧑‍⚕️' },
   { id: 'fitness', nombre: 'Entrenamiento personal', emoji: '🏋️' },
   { id: 'bienestar', nombre: 'Psicología y nutrición', emoji: '🧠' },
+  { id: 'restaurante', nombre: 'Restaurante y hostelería', emoji: '🍽️' },
 ];
+
+/**
+ * Verticales cuyas reservas funcionan por mesas y comensales (turnos de comida)
+ * en lugar de por servicios con cita individual.
+ */
+export const VERTICALES_RESTAURACION = ['restaurante'] as const;
+
+/** Indica si un vertical usa el modelo de reservas de restauración (mesas). */
+export function esVerticalRestauracion(vertical: string): boolean {
+  return (VERTICALES_RESTAURACION as readonly string[]).includes(vertical);
+}
+
+/**
+ * Nombre legible de un vertical a partir de su id. Si no se encuentra (p. ej.
+ * en modo demo el valor ya es el nombre), devuelve el valor recibido tal cual.
+ */
+export function nombreVertical(vertical: string): string {
+  return verticales.find((v) => v.id === vertical)?.nombre ?? vertical;
+}
 
 export type Plan = {
   id: 'solo' | 'equipo' | 'centro';
